@@ -8,7 +8,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:movies/screens/LandingPage.dart';
 import 'package:movies/utils/widget_functions.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:uuid/uuid.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
@@ -21,7 +21,7 @@ class MtnPaypage extends StatefulWidget {
 
   @override
   _pay_page createState() {
-    _pay_page();
+   return _pay_page();
   }
 }
 
@@ -162,6 +162,7 @@ class _pay_page extends State<MtnPaypage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              addVerticalSpace(30),
               Padding(
                 padding: sidePadding,
                 child: SizedBox(
@@ -170,7 +171,7 @@ class _pay_page extends State<MtnPaypage> {
                       fit: BoxFit.cover),
                 ),
               ),
-              addVerticalSpace(10),
+              addVerticalSpace(30),
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Text(
@@ -178,7 +179,7 @@ class _pay_page extends State<MtnPaypage> {
                   style: themeData.textTheme.headline1,
                 ),
               ),
-              addVerticalSpace(5),
+              addVerticalSpace(10),
               Padding(
                 padding: sidePadding,
                 child: Row(
@@ -191,7 +192,7 @@ class _pay_page extends State<MtnPaypage> {
                   ],
                 ),
               ),
-              addVerticalSpace(5),
+              addVerticalSpace(20),
               Padding(
                 padding: sidePadding,
                 child: Row(
@@ -199,20 +200,22 @@ class _pay_page extends State<MtnPaypage> {
                   children: [
                     Text(widget.selection_["definition"],
                         style: themeData.textTheme.headline6),
-                    Text(widget.selection_["seats"].length.toString(),
+                    Text(widget.selection_["seats"].length.toString()+"St(s)",
                         style: themeData.textTheme.headline6),
-                    Text(widget.selection_["amount"],
+                    Text(widget.selection_["amount"].toString(),
                         style: themeData.textTheme.headline6),
                   ],
                 ),
               ),
-              addVerticalSpace(5),
+              addVerticalSpace(30),
               Padding(
                 padding: sidePadding,
                 child: Form(
                   key: formkey,
                   child: TextFormField(
                     controller: _number,
+                      keyboardType: TextInputType.phone,
+
                     validator: (String value) {
                       if (value.isEmpty) {
                         return "* Required";
@@ -224,16 +227,16 @@ class _pay_page extends State<MtnPaypage> {
                     // onSaved: (String password) {
                     // this._password = password;
                     //},
-                    obscureText: true,
+
                     decoration: InputDecoration(
                         labelText: "phone number",
                         labelStyle: TextStyle(fontSize: 20),
-                        fillColor: COLOR_GREY,
+                        fillColor: Colors.orangeAccent,
                         filled: true),
                   ),
                 ),
               ),
-              addVerticalSpace(5),
+              addVerticalSpace(20),
               Container(
                 alignment: Alignment.center,
                 child: RaisedButton(
@@ -242,12 +245,13 @@ class _pay_page extends State<MtnPaypage> {
                       // show pay genete ticket
                       CircularProgressIndicator();
                       send(context);
-                      
+
                     } else {
                       showText("Fill the fields correctly");
                     }
                   },
-                  child: Text("Login"),
+                  color: Colors.orangeAccent,
+                  child: Text("PAY"),
                   textColor: COLOR_BLACK,
                 ),
               ),
@@ -271,9 +275,8 @@ class _pay_page extends State<MtnPaypage> {
           .post(
         tokenUrl,
         headers: <String, String>{
-          'Authorization': "Basic" + " " + ENCODED,
-          'Ocp-Apim-Subscription-Key': MYSECRET_USER_ID,
-          'Content-Type': 'application/json; charset=UTF-8',
+          'Authorization': ENCODED,
+          'Ocp-Apim-Subscription-Key': MY_SECRET_SUBSCRIPTION_KEY,
         },
         body: jsonEncode(<String, String>{}),
       )
@@ -282,7 +285,7 @@ class _pay_page extends State<MtnPaypage> {
         final int statusCode = response.statusCode;
         if (statusCode < 200 || statusCode > 400 || json == null) {
           print("Error while fetching data");
-          showText("Error while fetching data");
+          showText("Error while fetching data"+ statusCode.toString());
         } else {
           print(json.decode(res));
           final parsed = json.decode(res).cast<Map<String, dynamic>>();
@@ -385,8 +388,6 @@ class Token_ {
       token_type: json['token_type'],
       access_token: json['access_token'],
     );
-    String getToken() {
-      return access_token;
-    }
+
   }
 }

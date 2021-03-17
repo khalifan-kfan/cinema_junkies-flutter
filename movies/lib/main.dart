@@ -43,7 +43,7 @@ Widget listItem(BuildContext ctx, DocumentSnapshot snapshot) {
   
   return ListTile(
     title: Row(
-      children: [
+      children: [ZXk,
         Expanded(
           child: Text(
             snapshot['Title'],
