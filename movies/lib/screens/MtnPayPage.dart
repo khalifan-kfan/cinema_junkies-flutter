@@ -21,90 +21,111 @@ class MtnPaypage extends StatefulWidget {
 
   @override
   _pay_page createState() {
-   return _pay_page();
+    return _pay_page();
   }
 }
 
 class _pay_page extends State<MtnPaypage> {
   String Token = "";
-  GlobalKey<FormState> formkey = GlobalKey<FormState>();
+
   TextEditingController _number = TextEditingController();
+  GlobalKey<FormState> formkey = GlobalKey<FormState>();
   List<int> list = new List<int>();
+  bool isLoading = false;
+
   Future<void> send(BuildContext context) async {
     //step 1
     var url =
         'https://sandbox.momodeveloper.mtn.com/collection/v1_0/requesttopay';
-    var base = 'https://ericssonbasicapi2.azure-api.net';
-    var uuid = Uuid();
-    var idx = uuid.v4();
-    final Map<String, String> payment = new Map();
-    payment["amount"] = widget.selection_["name"];
-    payment["currency"] = "EUR";
-    payment["externalId"] = idx;
-    payment["payer"] = widget.selection_["username"];
-    payment["payerMessage"] = "Pay for Cinema Ticket";
-    payment["payerNote"] = "Enter pin to confirm";
 
-    Token_getter().then((value) async {
+    var idx;
+
+    Token_getter().then((String value) async {
       //SharedPreferences prefs = await SharedPreferences.getInstance();
       //prefs.setString('Token', value);
       //prefs.setInt(
-        //  'TokenTime',
-        //  (DateTime.now().add(const Duration(hours: 1)))
-       //       .microsecondsSinceEpoch);
+      //  'TokenTime',
+      //  (DateTime.now().add(const Duration(hours: 1)))
+      //       .microsecondsSinceEpoch);
       // await prefs.setInt('counter', counter)
-      HttpClient mm = new HttpClient();
-      HttpClientRequest rq = await mm.postUrl(Uri.parse(url));
-      rq.headers.set('Authorization', "Bearer" + " " + value);
-      //  rq.headers.set('X-Callback-Url', base);
-      rq.headers.set('X-Reference-Id', idx);
-      rq.headers.set('X-Target-Environment', 'sandbox');
-      rq.headers.set('Content-Type', 'application/json');
-      rq.headers.set('Ocp-Apim-Subscription-Key', MY_SECRET_SUBSCRIPTION_KEY);
+      var uuid = Uuid();
+      idx = uuid.v4();
+      var auth2 = "Bearer $Token";
 
-      rq.add(utf8.encode(json.encode(payment)));
-      HttpClientResponse rp = await rq.close();
-      //check status code
-      if (rp.statusCode > 200 || rp.statusCode > 400) {
-        showText("momo error:" + rp.statusCode.toString());
-      } else {
-        print("ACCEPTED 200");
-        // track transation message
-        trackTransaction(idx, value, 5, context);
-      }
-      mm.close();
+      await http
+          .post(
+        url,
+        headers: <String, String>{
+          'Authorization': auth2,
+          'X-Reference-Id': idx,
+          'X-Target-Environment': 'sandbox',
+          'Content-Type': 'application/json',
+          'Ocp-Apim-Subscription-Key': MY_SECRET_SUBSCRIPTION_KEY,
+        },
+        body: jsonEncode(<String, dynamic>{
+          "amount": widget.selection_["amount"].toString(),
+          "currency": "EUR",
+          "externalId": idx,
+          "payer": {
+            "partyIdType": "MSISDN",
+            "partyId": _number.text,
+          },
+          "payerMessage": "Pay for Cinema Ticket",
+          "payeeNote": "Enter pin to confirm",
+        }),
+      )
+          .then((http.Response response) {
+        final String res = response.body;
+        final int statusCode = response.statusCode;
+        //check status code
+        if (statusCode < 200 || statusCode >= 400) {
+          showText("momo error: " + statusCode.toString());
+          setState(() {
+            isLoading = false;
+          });
+        } else {
+          print("ACCEPTED" + statusCode.toString());
+          // track transation message
+          trackTransaction(idx, Token, 5, context);
+        }
+      });
     });
   }
 
   Future<String> trackTransaction(
       var idx, var val, var counter, BuildContext context) async {
     //track transaction to see if successfull
+    String auth3 = 'Bearer $val';
     var Url =
-        'https://sandbox.momodeveloper.mtn.com/collection/v1_0/requesttopay/' +
-            idx;
+        'https://sandbox.momodeveloper.mtn.com/collection/v1_0/requesttopay/$idx';
+
     await http.get(
       Url,
       headers: <String, String>{
-        'Authorization': "Bearer" + " " + val,
-        'Ocp-Apim-Subscription-Key': MYSECRET_USER_ID,
-        'X-Target-Environment': 'sandbox',
+        'Authorization': auth3,
+        'X-Target-Environment':'sandbox',
+        'Ocp-Apim-Subscription-Key': MY_SECRET_SUBSCRIPTION_KEY,
       },
     ).then((http.Response response) {
       final String res = response.body;
       final int statusCode = response.statusCode;
-      print(json.decode(res));
-      if (statusCode < 200 || statusCode > 400 || json == null) {
+      //print(json.decode(res));
+      if (statusCode < 200 || statusCode >= 400) {     
         print("Issue tracking transaction please wait");
-        showText("Issue tracking transaction");
+        showText("Issue tracking transaction" + statusCode.toString());
+
         if (counter >= 1) {
           new Timer(const Duration(milliseconds: 500), () {
             trackTransaction(idx, val, counter--, context);
           });
         } else {
+          setState(() {
+          isLoading = false;
+        });
           showText("Something went wrong, please retry");
         }
       } else {
-        final parsed = json.decode(res).cast<Map<String, dynamic>>();
+        final parsed = json.decode(res) as Map<String, dynamic>;
         if (parsed['status'].toString().toLowerCase().contains('success')) {
           showText("transaction successfull");
           widget.selection_["transactionref"] = idx;
@@ -112,12 +133,17 @@ class _pay_page extends State<MtnPaypage> {
         } else if (parsed['status'].toString().toLowerCase().contains('fail') ||
             parsed['status'].toString().toLowerCase().contains('reject')) {
           showText("transaction failed");
+          setState(() {
+            isLoading = false;
+          });
         } else if (parsed['status']
             .toString()
             .toLowerCase()
             .contains('pending')) {
           new Timer(const Duration(milliseconds: 700), () {
-            trackTransaction(idx, val, counter--, context);
+            if (counter > 0) {
+              trackTransaction(idx, val, counter--, context);
+            }
           });
         }
       }
@@ -200,7 +226,7 @@ class _pay_page extends State<MtnPaypage> {
                   children: [
                     Text(widget.selection_["definition"],
                         style: themeData.textTheme.headline6),
-                    Text(widget.selection_["seats"].length.toString()+"St(s)",
+                    Text(widget.selection_["seats"].length.toString() + "St(s)",
                         style: themeData.textTheme.headline6),
                     Text(widget.selection_["amount"].toString(),
                         style: themeData.textTheme.headline6),
@@ -214,8 +240,7 @@ class _pay_page extends State<MtnPaypage> {
                   key: formkey,
                   child: TextFormField(
                     controller: _number,
-                      keyboardType: TextInputType.phone,
-
+                    keyboardType: TextInputType.phone,
                     validator: (String value) {
                       if (value.isEmpty) {
                         return "* Required";
@@ -224,10 +249,6 @@ class _pay_page extends State<MtnPaypage> {
                       } else
                         return null;
                     },
-                    // onSaved: (String password) {
-                    // this._password = password;
-                    //},
-
                     decoration: InputDecoration(
                         labelText: "phone number",
                         labelStyle: TextStyle(fontSize: 20),
@@ -243,9 +264,10 @@ class _pay_page extends State<MtnPaypage> {
                   onPressed: () {
                     if (formkey.currentState.validate()) {
                       // show pay genete ticket
-                      CircularProgressIndicator();
+                      setState(() {
+                        isLoading = true;
+                      });
                       send(context);
-
                     } else {
                       showText("Fill the fields correctly");
                     }
@@ -255,6 +277,14 @@ class _pay_page extends State<MtnPaypage> {
                   textColor: COLOR_BLACK,
                 ),
               ),
+              addVerticalSpace(20),
+              isLoading
+                  ? CircularProgressIndicator(
+                      strokeWidth: 10,
+                      backgroundColor: Colors.cyanAccent,
+                      valueColor: new AlwaysStoppedAnimation<Color>(Colors.red),
+                    )
+                  : Text("click pay"),
             ],
           ),
         ),
@@ -266,36 +296,41 @@ class _pay_page extends State<MtnPaypage> {
     // need a header that starts with basic
     //and then the subscrition key
     var tokenUrl = 'https://sandbox.momodeveloper.mtn.com/collection/token/';
-   // SharedPreferences prefs = await SharedPreferences.getInstance();
+    // SharedPreferences prefs = await SharedPreferences.getInstance();
     //String token = (prefs.getString('Token') ?? "");
-   // var time = (prefs.getInt('TokenTime') ?? "");
+    // var time = (prefs.getInt('TokenTime') ?? "");
     //print("token:" + token);
 
-      await http
-          .post(
-        tokenUrl,
-        headers: <String, String>{
-          'Authorization': ENCODED,
-          'Ocp-Apim-Subscription-Key': MY_SECRET_SUBSCRIPTION_KEY,
-        },
-        body: jsonEncode(<String, String>{}),
-      )
-          .then((http.Response response) async {
-        final String res = response.body;
-        final int statusCode = response.statusCode;
-        if (statusCode < 200 || statusCode > 400 || json == null) {
-          print("Error while fetching data");
-          showText("Error while fetching data"+ statusCode.toString());
-        } else {
-          print(json.decode(res));
-          final parsed = json.decode(res).cast<Map<String, dynamic>>();
-          // parsed.map<Token_>((json) => Token_.fromJson(json));
-          // await prefs.setInt('counter', counter)
-          return parsed['access_token'];
-          
-        }
-      });
-  
+    await http
+        .post(
+      tokenUrl,
+      headers: <String, String>{
+        'Authorization': ENCODED,
+        'Ocp-Apim-Subscription-Key': MY_SECRET_SUBSCRIPTION_KEY,
+      },
+      body: jsonEncode(<String, String>{}),
+    )
+        .then((http.Response response) async {
+      final String res = response.body;
+      final int statusCode = response.statusCode;
+      if (statusCode < 200 || statusCode >= 400 || json == null) {
+
+        print("Error while fetching data");
+        showText("Error while fetching data" + statusCode.toString());
+        setState(() {
+          isLoading = false;
+        });
+
+      } else {
+        // print(json.decode(res));
+        final parsed = json.decode(res) as Map<String, dynamic>;
+        //parsed.map<Token_>((json) => Token_.fromJson(json));
+        // await prefs.setInt('counter', counter)
+        Token = parsed['access_token'];
+        print(Token);
+        return parsed['access_token'];
+      }
+    });
   }
 
   void showText(String msg) {
@@ -373,6 +408,13 @@ class _pay_page extends State<MtnPaypage> {
       }
     });
   }
+
+  @override
+  void dispose() {
+    _number.dispose();
+   
+    super.dispose();
+  }
 }
 
 class Token_ {
@@ -388,6 +430,5 @@ class Token_ {
       token_type: json['token_type'],
       access_token: json['access_token'],
     );
-
   }
 }
