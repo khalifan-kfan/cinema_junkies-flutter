@@ -103,14 +103,14 @@ class _pay_page extends State<MtnPaypage> {
       Url,
       headers: <String, String>{
         'Authorization': auth3,
-        'X-Target-Environment':'sandbox',
+        'X-Target-Environment': 'sandbox',
         'Ocp-Apim-Subscription-Key': MY_SECRET_SUBSCRIPTION_KEY,
       },
     ).then((http.Response response) {
       final String res = response.body;
       final int statusCode = response.statusCode;
       //print(json.decode(res));
-      if (statusCode < 200 || statusCode >= 400) {     
+      if (statusCode < 200 || statusCode >= 400) {
         print("Issue tracking transaction please wait");
         showText("Issue tracking transaction" + statusCode.toString());
 
@@ -120,8 +120,8 @@ class _pay_page extends State<MtnPaypage> {
           });
         } else {
           setState(() {
-          isLoading = false;
-        });
+            isLoading = false;
+          });
           showText("Something went wrong, please retry");
         }
       } else {
@@ -314,13 +314,11 @@ class _pay_page extends State<MtnPaypage> {
       final String res = response.body;
       final int statusCode = response.statusCode;
       if (statusCode < 200 || statusCode >= 400 || json == null) {
-
         print("Error while fetching data");
         showText("Error while fetching data" + statusCode.toString());
         setState(() {
           isLoading = false;
         });
-
       } else {
         // print(json.decode(res));
         final parsed = json.decode(res) as Map<String, dynamic>;
@@ -358,14 +356,19 @@ class _pay_page extends State<MtnPaypage> {
         .doc(widget.selection_["time_id"])
         .get()
         .then((DocumentSnapshot document) {
+      List<dynamic> seats = new List();
+      List<int> hav = new List();
+      hav = widget.selection_["seats"];
+      seats = document.data()["available_seats"];
       for (int i = 0; i < widget.selection_["seats"].length; i++) {
-        if (widget.selection_["seats"]
-            .contains(document.data()["available_seats"][i])) {
-          widget.selection_["seats"].remove(i);
-          document.data()["available_seats"].remove(i);
-        } else {
-          // more implementation abort
-        }
+        seats.remove(hav[i]);
+        //if (seats.contains(widget.selection_["seats"][i])) {
+        //widget.selection_["seats"].remove(i);
+        //seats.remove(i);
+        //document.data()["available_seats"].remove(i);
+        //} else {
+        // more implementation abort
+        //  }
       }
       FirebaseFirestore.instance
           .collection("Movies")
@@ -376,8 +379,7 @@ class _pay_page extends State<MtnPaypage> {
           .doc(widget.selection_["cinema_id"])
           .collection("Times")
           .doc(widget.selection_["time_id"])
-          .update({"available_seats": document.data()["available_seats"]}).then(
-              (result) {
+          .update({"available_seats": seats}).then((result) {
         print("Success!");
         store_transaction(id, context);
       });
@@ -412,7 +414,7 @@ class _pay_page extends State<MtnPaypage> {
   @override
   void dispose() {
     _number.dispose();
-   
+
     super.dispose();
   }
 }

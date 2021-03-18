@@ -94,7 +94,8 @@ class select_state extends State<SeatsSelection> {
                     selection_["seats"] = selection;
                     selection_["amount"] = price;
                     selection_["date"] = widget.day.data()["absolute_date"];
-                    selection_["price"] = widget.hall.data()["day_price"];
+                    selection_["price"] =
+                        widget.day.data()["day_price"]; //why null
                     selection_["day_id"] = widget.day.id;
                     selection_["cinema_id"] = widget.hall.id;
                     selection_["time_id"] = widget.timeData.id;
