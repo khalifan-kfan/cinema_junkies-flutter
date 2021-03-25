@@ -12,6 +12,9 @@ import 'package:movies/utils/constants.dart';
 //import 'package:movies/utils/custom_functions.dart';
 import 'package:movies/utils/widget_functions.dart';
 
+import 'MyDrawer.dart';
+import 'loginPage.dart';
+
 class LandingPage extends StatefulWidget {
   @override
   LandingPage_ createState() {
@@ -22,6 +25,7 @@ class LandingPage extends StatefulWidget {
 class LandingPage_ extends State<LandingPage> {
   int chosen;
   bool islogged_in;
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   @override
   void initState() {
     super.initState();
@@ -46,6 +50,8 @@ class LandingPage_ extends State<LandingPage> {
       onWillPop: () => Future.value(false),
       child: SafeArea(
         child: Scaffold(
+          key: _scaffoldKey,
+          drawer: MyDrawer(),
           body: Container(
             width: size.width,
             height: size.height,
@@ -58,27 +64,18 @@ class LandingPage_ extends State<LandingPage> {
                     addVerticalSpace(padding),
                     Padding(
                       padding: sidePadding,
-                      child: Row(
-                        // space between two upper icons
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          BorderIcon(
-                            height: 50,
-                            width: 50,
-                            child: Icon(
-                              Icons.menu,
-                              color: COLOR_BLACK,
-                            ),
+                      child: GestureDetector(
+                        onTap: () {
+                          _scaffoldKey.currentState.openDrawer();
+                        },
+                        child: BorderIcon(
+                          height: 50,
+                          width: 50,
+                          child: Icon(
+                            Icons.menu,
+                            color: COLOR_BLACK,
                           ),
-                          BorderIcon(
-                            height: 50,
-                            width: 50,
-                            child: Icon(
-                              Icons.settings,
-                              color: COLOR_BLACK,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                     addVerticalSpace(20),
@@ -275,11 +272,72 @@ class LandingPage_ extends State<LandingPage> {
                               })
                           : Padding(
                               padding: sidePadding,
-                              child: Text(
-                                  " Please click here to first login or sign up."),
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                      builder: (context) => LoginPage()));
+                                },
+                                child: Text(
+                                    " Please click here to first login or sign up."),
+                              ),
                             )
                     else if (chosen == 3)
-                      Text("History")
+                      islogged_in
+                          ? StreamBuilder<QuerySnapshot>(
+                              stream: FirebaseFirestore.instance
+                                  .collection("Users")
+                                  .doc(FirebaseAuth.instance.currentUser.uid)
+                                  .collection("History")
+                                  .snapshots(),
+                              builder: (BuildContext context,
+                                  AsyncSnapshot<QuerySnapshot> snapshot) {
+                                if (snapshot.hasError) {
+                                  return Text('Something went wrong');
+                                }
+
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return Center(
+                                    child: Padding(
+                                      padding: sidePadding,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 10,
+                                        backgroundColor: Colors.cyanAccent,
+                                        valueColor:
+                                            new AlwaysStoppedAnimation<Color>(
+                                                Colors.red),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return Expanded(
+                                  child: Padding(
+                                      padding: sidePadding,
+                                      child: ListView.builder(
+                                          //padding: sidePadding,
+                                          physics: BouncingScrollPhysics(),
+                                          itemCount: snapshot.data.docs.length,
+                                          itemBuilder: (context, index) {
+                                            DocumentSnapshot history =
+                                                snapshot.data.docs[index];
+                                            return HistoryItem(
+                                              record: history,
+                                              parent: this,
+                                            );
+                                          })),
+                                );
+                              })
+                          : Padding(
+                              padding: sidePadding,
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                      builder: (context) => LoginPage()));
+                                },
+                                child: Text(
+                                    " Please click here to first login or sign up."),
+                              ),
+                            )
                   ],
                 ),
                 /*  Positioned(
@@ -302,6 +360,80 @@ class LandingPage_ extends State<LandingPage> {
   }
 }
 
+class HistoryItem extends StatelessWidget {
+  final DocumentSnapshot record;
+  final LandingPage_ parent;
+
+  const HistoryItem({Key key, this.record, this.parent}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    DateTime record_day = record.data()["date"].toDate();
+    final ThemeData themeData = Theme.of(context);
+
+    final dd = new DateFormat('dd-MM-yyyy');
+    return Container(
+      height: 170,
+      decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.rectangle,
+          borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(12), topRight: Radius.circular(20))),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 25),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            SizedBox(
+              height: 120,
+              width: 120,
+              child: Image.network(record.get("pic_link"), fit: BoxFit.cover),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 25),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 7),
+                    child: Text(
+                      record.get("Title"),
+                      style: themeData.textTheme.headline2,
+                    ),
+                  ),
+                  addVerticalSpace(5),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 7),
+                    child: Text(
+                      "On: ${dd.format(record.get("date").toDate())}",
+                      style: themeData.textTheme.headline4,
+                    ),
+                  ),
+                  addVerticalSpace(5),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 7),
+                    child: Text(
+                      "Paid: ${record.get("amount").toString()}",
+                      style: themeData.textTheme.headline4,
+                    ),
+                  ),
+                  addVerticalSpace(5),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 7),
+                    child: Text(
+                      "Watched.",
+                      style: themeData.textTheme.headline4,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class TicketItem extends StatelessWidget {
   final DocumentSnapshot ticket;
   final LandingPage_ parent;
@@ -311,20 +443,22 @@ class TicketItem extends StatelessWidget {
   String Seats(List<dynamic> seats) {
     String result = "";
     for (int k = 0; k < seats.length; k++) {
-      result += "${seats[k].toString()} ,";
+      result += "${seats[k].toString()} .";
     }
     return result;
   }
 
-  void Save_Delete(DocumentSnapshot ticket) {
-    FirebaseFirestore.instance
+  void Save_Delete(DocumentSnapshot ticket) async {
+    showText("removing.......");
+    await FirebaseFirestore.instance
         .collection("Users")
         .doc(FirebaseAuth.instance.currentUser.uid)
         .collection("History")
         .doc(ticket.id)
         .get()
         .then((value) {
-      if (value == null) {
+      if (!value.exists) {
+        showText("not there");
         FirebaseFirestore.instance
             .collection("Users")
             .doc(FirebaseAuth.instance.currentUser.uid)
@@ -377,9 +511,9 @@ class TicketItem extends StatelessWidget {
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 7),
                     child: ticket_time
-                        .add(Duration(hours: 6))
-                        .compareTo(new DateTime.now())>0
-                        
+                                .add(Duration(hours: 6))
+                                .compareTo(new DateTime.now()) >
+                            0
                         ? BorderIcon(
                             height: 50,
                             width: 50,
@@ -387,11 +521,10 @@ class TicketItem extends StatelessWidget {
                               Icons.blur_on_outlined,
                               color: Colors.green,
                             ))
-                        :GestureDetector(
+                        : GestureDetector(
                             onTap: () {
                               // save to history delete from here
                               Save_Delete(ticket);
-                              showText("removing.......");
                             },
                             child: BorderIcon(
                               height: 50,
@@ -474,15 +607,17 @@ class TicketItem extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 7),
                 child: ticket_time
-                        .add(Duration(hours: 6))
-                        .compareTo(new DateTime.now())>0
+                            .add(Duration(hours: 6))
+                            .compareTo(new DateTime.now()) >
+                        0
                     ? RaisedButton(
                         onPressed: () async {
                           //save to history and delete from ticket if date is 2 houra close
                           if (ticket_time.difference(DateTime.now()).inDays ==
-                              0) {                          
-                            return await  
-                                showDialog(context: context, builder: (context) => DialogTicket(context));
+                              0) {
+                            return await showDialog(
+                                context: context,
+                                builder: (context) => DialogTicket(context));
                           } else {
                             showText(
                                 "The time of use of this ticket is not in range yet");
@@ -494,7 +629,6 @@ class TicketItem extends StatelessWidget {
                       )
                     : GestureDetector(
                         onTap: () {
-                          showText("removing .....");
                           Save_Delete(ticket);
                         },
                         child: Text(
@@ -508,8 +642,7 @@ class TicketItem extends StatelessWidget {
     );
   }
 
-  Widget DialogTicket(BuildContext context){
-    
+  Widget DialogTicket(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -517,70 +650,68 @@ class TicketItem extends StatelessWidget {
       elevation: 10,
       backgroundColor: Colors.transparent,
       child: Container(
-      height: 300,
-      decoration: BoxDecoration(
-          color: COLOR_WHITE,
-          shape: BoxShape.rectangle,
-          borderRadius: BorderRadius.only(
-           topLeft: Radius.circular(12), topRight: Radius.circular(12))),
-      child: Column(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: BorderIcon(
-                height: 70,
-                width: 70,
-                child: Icon(
-                  Icons.book_online,
-                  color: Colors.black,
-                )),
-          ),
-          addVerticalSpace(24),
-          Text("Use Ticket!",
-              style: TextStyle(
-                  fontSize: 20,
-                  color: COLOR_BLACK,
-                  fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center),
-          addVerticalSpace(8),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(
-              "If you continue, this ticket will be deleted, considered used. Please confirm in presence of a cinema atendant",
-              textAlign: TextAlign.center,
+        height: 300,
+        decoration: BoxDecoration(
+            color: COLOR_WHITE,
+            shape: BoxShape.rectangle,
+            borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(12), topRight: Radius.circular(12))),
+        child: Column(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: BorderIcon(
+                  height: 70,
+                  width: 70,
+                  child: Icon(
+                    Icons.book_online,
+                    color: Colors.black,
+                  )),
             ),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 25),
-            child: Row(
-              //mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                RaisedButton(
-                  onPressed: () {
-                    //dismiss
-                    Navigator.of(context).pop();
-                  },
-                  child: Text("Not yet"),
-                  textColor: COLOR_BLACK,
-                ),
-                RaisedButton(
-                  onPressed: () {
-                     showText("saving .....");
-                     Save_Delete(ticket);
-                  },
-                  child: Text("Continue"),
-                  textColor: COLOR_BLACK,
-                ),
-              ],
+            addVerticalSpace(24),
+            Text("Use Ticket!",
+                style: TextStyle(
+                    fontSize: 20,
+                    color: COLOR_BLACK,
+                    fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center),
+            addVerticalSpace(8),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                "If you continue, this ticket will be deleted, considered used. Please confirm in presence of a cinema atendant",
+                textAlign: TextAlign.center,
+              ),
             ),
-          )
-        ],
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 25),
+              child: Row(
+                //mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  RaisedButton(
+                    onPressed: () {
+                      //dismiss
+                      Navigator.of(context).pop();
+                    },
+                    child: Text("Not yet"),
+                    textColor: COLOR_BLACK,
+                  ),
+                  RaisedButton(
+                    onPressed: () {
+                      showText("saving .....");
+                      Save_Delete(ticket);
+                    },
+                    child: Text("Continue"),
+                    textColor: COLOR_BLACK,
+                  ),
+                ],
+              ),
+            )
+          ],
+        ),
       ),
-    ),
     );
-  
- 
   }
 
   void showText(String msg) {
@@ -652,7 +783,7 @@ class MovieItem extends StatelessWidget {
                     right: 15,
                     child: BorderIcon(
                         child: Icon(
-                      Icons.favorite_border,
+                      Icons.calendar_today,
                       color: COLOR_BLACK,
                     )))
               ],
