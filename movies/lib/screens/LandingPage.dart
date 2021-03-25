@@ -7,6 +7,7 @@ import 'package:movies/custom/BorderIcon.dart';
 import 'package:movies/custom/OptionButton.dart';
 //import 'package:movies/sample_data.dart';
 import 'package:movies/screens/DetailPage.dart';
+import 'package:movies/utils/DialogHelper.dart';
 import 'package:movies/utils/constants.dart';
 //import 'package:movies/utils/custom_functions.dart';
 import 'package:movies/utils/widget_functions.dart';
@@ -376,8 +377,9 @@ class TicketItem extends StatelessWidget {
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 7),
                     child: ticket_time
-                            .add(new Duration(hours: 6))
-                            .isBefore(DateTime.now())
+                        .add(Duration(hours: 6))
+                        .compareTo(new DateTime.now())>0
+                        
                         ? BorderIcon(
                             height: 50,
                             width: 50,
@@ -385,7 +387,7 @@ class TicketItem extends StatelessWidget {
                               Icons.blur_on_outlined,
                               color: Colors.green,
                             ))
-                        : GestureDetector(
+                        :GestureDetector(
                             onTap: () {
                               // save to history delete from here
                               Save_Delete(ticket);
@@ -472,15 +474,15 @@ class TicketItem extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 7),
                 child: ticket_time
-                        .add(new Duration(hours: 6))
-                        .isBefore(DateTime.now())
+                        .add(Duration(hours: 6))
+                        .compareTo(new DateTime.now())>0
                     ? RaisedButton(
-                        onPressed: () {
+                        onPressed: () async {
                           //save to history and delete from ticket if date is 2 houra close
                           if (ticket_time.difference(DateTime.now()).inDays ==
-                              0) {
-                            showText("saving .....");
-                            Save_Delete(ticket);
+                              0) {                          
+                            return await  
+                                showDialog(context: context, builder: (context) => DialogTicket(context));
                           } else {
                             showText(
                                 "The time of use of this ticket is not in range yet");
@@ -504,6 +506,81 @@ class TicketItem extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget DialogTicket(BuildContext context){
+    
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      elevation: 10,
+      backgroundColor: Colors.transparent,
+      child: Container(
+      height: 300,
+      decoration: BoxDecoration(
+          color: COLOR_WHITE,
+          shape: BoxShape.rectangle,
+          borderRadius: BorderRadius.only(
+           topLeft: Radius.circular(12), topRight: Radius.circular(12))),
+      child: Column(
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: BorderIcon(
+                height: 70,
+                width: 70,
+                child: Icon(
+                  Icons.book_online,
+                  color: Colors.black,
+                )),
+          ),
+          addVerticalSpace(24),
+          Text("Use Ticket!",
+              style: TextStyle(
+                  fontSize: 20,
+                  color: COLOR_BLACK,
+                  fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center),
+          addVerticalSpace(8),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              "If you continue, this ticket will be deleted, considered used. Please confirm in presence of a cinema atendant",
+              textAlign: TextAlign.center,
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 25),
+            child: Row(
+              //mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                RaisedButton(
+                  onPressed: () {
+                    //dismiss
+                    Navigator.of(context).pop();
+                  },
+                  child: Text("Not yet"),
+                  textColor: COLOR_BLACK,
+                ),
+                RaisedButton(
+                  onPressed: () {
+                     showText("saving .....");
+                     Save_Delete(ticket);
+                  },
+                  child: Text("Continue"),
+                  textColor: COLOR_BLACK,
+                ),
+              ],
+            ),
+          )
+        ],
+      ),
+    ),
+    );
+  
+ 
   }
 
   void showText(String msg) {
